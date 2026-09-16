@@ -1,0 +1,51 @@
+# CodexQuota 版本轨迹
+
+- **产物归档**：`releases/v<版本>-<日期>/`，每目录含 `CodexQuota.app` 与 `RELEASE_NOTES.md`（含可执行文件 SHA-256）；`releases/` 为本机归档，不随源码发布，正式发布用 Git tag + GitHub Release
+- **版本号**：根目录 `VERSION` 文件是唯一来源，构建时注入 App 的 `CFBundleShortVersionString`（仓库内 `Info.plist` 作为模板，不被改写）
+- **发布命令**：`./build_app.sh "改动摘要"`；**升版本必须先改 `VERSION`**，脚本不接受命令行版本参数（同名归档已存在时拒绝覆盖，历史版本只读）
+
+## v1.2.1（2026-09-15）探针输出隐私收口
+
+- `--probe` 输出不再包含本机 Codex 绝对路径，只保留可执行文件名（`codex`）；
+  账号仍为打码形式。探针输出常被贴进 Issue，不应暴露目录结构与用户名
+- 报告生成抽为可测函数 `ProbeRunner.makeReport`，新增 `ProbeRunnerTests`（3 例）：
+  断言输出不含绝对路径、不含用户名、不含完整邮箱
+- 测试：64/64 通过；构建、签名校验、版本一致性三方校验均通过
+- 真实额度读取于 2026-09-15 复验成功（5h 剩 10%、周剩 21%）；v1.2.0 时的 probe 失败经分层诊断，
+  不由 CodexQuota 请求或解析逻辑造成（根因为上游链路中断），核心读取已复验通过
+
+## v1.2.0（2026-09-14）源码公开准备 + 解析健壮性与发布可靠性
+
+- 新增 `.gitignore`：排除 `.build/`、`*.app/`、`releases/`、`.DS_Store`
+- 新增 `LICENSE`（MIT）、`SECURITY.md`、`CONTRIBUTING.md`
+- 重写 `README.md`：删除个人运行记录与本机绝对路径，补非官方声明、Apple Silicon 与构建前提、分发形态说明；隐私章节前置并明确唯一落盘文件
+- 解析健壮性：`RateLimitsParser.intValue` 拒绝 Bool（改用 `CFGetTypeID`）、小数、越界与超大数（`Int(d)` 越界会崩溃）；`usedPercent` 限 0～100，`windowDurationMins` 需 >0，`resetsAt` 需正整数
+- 稳定性：App Server 子进程 stderr 持续消费（512 KB 压力用例），`codex --version` 辅助进程 stderr 指向 null device
+- 构建可靠性：签名失败不再被 `|| true` 吞掉，新增 `codesign --verify --deep --strict` 与 Release Notes 版本校验
+- 版本单一来源：新增 `AppVersion`，`clientInfo.version` 不再写死；`VERSION` 文件为唯一来源，脚本不接受命令行版本
+- Bundle ID 改为 `com.codexquota.CodexQuota`，版权文字改为中性版权声明
+- 测试：61/61 通过；构建、签名校验、版本一致性三方校验均通过
+- **验收状态**：构建、签名校验、版本一致性三方校验、单元测试 61/61 均通过。
+  构建后本机真实 `--probe` 曾连续两次失败，分层诊断定位为**上游链路问题**
+  （到 `chatgpt.com/backend-api` 的 TLS 连接被中断；`initialize` 与 `account/read` 正常、登录态有效）；
+  2026-09-15 网络恢复后复验，**真实读取连续两次成功**（5h 剩 10%、周剩 21%）。
+  结论仅表述为：本次故障不由 CodexQuota 请求或解析逻辑造成，核心读取已复验通过。
+  **仍不声称"全面验收"**：曲线渲染、休眠唤醒、真机断网等未做人工目验
+
+## v1.1.0（2026-09-14）历史曲线 + 清除按钮改造
+
+- 新增历史曲线：面板内嵌 Swift Charts 折线图，支持 6 小时 / 24 小时 / 7 天切换、图例、采样点计数
+- 新增 `HistoryStore`：采样节流（值未变 <60s 丢弃、≥60s 记心跳；值变化 <10s 就地更新）、本机持久化、7 天保留期与 20,000 条上限、文件损坏降级为空
+- 绘制抽稀至多 300 点（保留首尾），不影响数值
+- 「清除历史」改为带边框按钮（trash 图标），确认态为红色醒目按钮；点击面板空白处即复位
+- 隐私边界变更：新增唯一落盘文件 `~/Library/Application Support/CodexQuota/history.json`，仅含时间戳、窗口时长、剩余百分比
+- 测试 49/49 通过（新增 16 例）；真机启动写入历史、179 秒后出现心跳点已验证
+- 未目验：面板内曲线的实际渲染效果（图例、坐标轴、按钮视觉）尚未截图确认
+
+## v1.0.0（2026-09-09）初版
+
+- 菜单栏 `timer` 图标 + `5h：xx%｜周：xx%`，点击展开详情面板（窗口进度条、重置倒计时、套餐/账号/连接/CLI 版本）
+- 数据源为本机 Codex CLI 的 `codex app-server`（stdio JSON-RPC）：通知回源 + 3 分钟兜底轮询 + 休眠唤醒即刷 + 请求 10s 超时 + 退避重连
+- 中英文跟随系统语言实时切换；`--probe` 无界面探针用于真实账号验证
+- 初版产物由开发期原件归档而来
+- 待人工验证：休眠唤醒刷新、真机断网后的菜单栏实际渲染

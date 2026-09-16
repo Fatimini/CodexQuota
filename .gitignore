@@ -1,0 +1,14 @@
+# 构建产物（含本机绝对路径，不得入库）
+.build/
+
+# 打包产物与本机发布归档（发布包不属于源码仓库）
+*.app/
+releases/
+
+# 系统杂项
+.DS_Store
+
+# Xcode / SwiftPM 用户态
+xcuserdata/
+*.xcworkspace/
+.swiftpm/configuration/
