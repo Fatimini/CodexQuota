@@ -37,6 +37,16 @@
 
 ## 安装与构建
 
+### Mac 下载试用版（v1.3.0，公开测试版）
+
+试用包适用于 Apple Silicon、macOS 13+，无需 Xcode 或自行编译。
+在 [v1.3.0 发布页](https://github.com/Fatimini/CodexQuota/releases/tag/v1.3.0) 选择 `CodexQuota-v1.3.0-macOS-arm64.zip`，
+解压并拖入“应用程序”。仍需要自行安装 Codex CLI 并登录。
+试用包为 ad-hoc 签名、未公证，首次启动可能需在“隐私与安全性”中手动允许。
+完整步骤和故障处理见 [安装说明](INSTALL.md)。套餐名称保持接口原有显示。
+
+### 从源码构建
+
 ```bash
 ./build_app.sh "本次改动摘要"          # 编译 → 打包 → ad-hoc 签名 → 签名校验 → 本机归档
 open CodexQuota.app                    # 启动（LSUIElement，只驻留菜单栏，无 Dock 图标）
@@ -46,7 +56,10 @@ open CodexQuota.app                    # 启动（LSUIElement，只驻留菜单�
 
 > **关于分发**：构建脚本做的是 **ad-hoc 签名，不是 Apple 公证的分发版本**。
 > 复制到其他 Mac 时，Gatekeeper 会拒绝启动，需接收方在「系统设置 → 隐私与安全性」手动放行。
-> 本项目目前**只以源码形式发布**，不提供预编译下载包。
+> v1.2.1 仅提供源码；v1.3.0 提供 Apple Silicon 公开测试安装包。
+
+维护者可执行 `bash package_trial.sh` 生成独立的试用 ZIP 和 SHA256SUMS.txt，
+产物置于 `releases/`，不会覆盖旧 App 或旧归档。
 
 ## 使用
 
@@ -137,7 +150,7 @@ CODEXQUOTA_CODEX_PATH=/非有效路径 .build/release/CodexQuota --probe        
 ## 测试
 
 ```bash
-swift test        # 当前 64 例
+swift test        # 当前 67 例
 ```
 
 覆盖：真实响应形态、单窗口/双窗口/全 null、ByLimitId 优先级、未知窗口时长、
@@ -149,7 +162,7 @@ swift test        # 当前 64 例
 
 | 类别 | 项目 |
 | --- | --- |
-| **已验证** | 单元测试 64/64；构建与 ad-hoc 签名校验；版本一致性校验；真实额度读取连续两次成功 |
+| **已验证** | v1.3.0 单元测试 67/67；构建与 ad-hoc 签名校验；v1.2.1 真实额度读取连续两次成功；试用 ZIP 解压后的验证结果见发布记录 |
 | **未验证** | 面板曲线与清除按钮的实际渲染（未截图目验）；休眠唤醒刷新；真机断网后的恢复与渲染；Intel Mac 上编译运行；未登录态的真机表现 |
 
 「已验证」指有实测结果支撑，「未验证」指逻辑有测试覆盖但缺少人工/真机确认，或从未执行过。

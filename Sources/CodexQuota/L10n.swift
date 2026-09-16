@@ -18,6 +18,12 @@ enum L10n {
 
     static var isZh: Bool { current == .zh }
 
+    static var setupHelp: String { isZh ? "安装帮助" : "Setup help" }
+    static var cliGuide: String { isZh ? "打开 Codex 官方安装说明" : "Open official Codex setup guide" }
+    static var setupMissingCLI: String { isZh ? "需要先安装 Codex CLI。安装并登录后，请退出并重新打开本工具。无需编译本工具。" : "Install Codex CLI and sign in, then quit and reopen this app. No app compilation is needed." }
+    static var setupLogin: String { isZh ? "请在终端运行 codex login，使用自己的 ChatGPT 账号登录，然后退出并重新打开本工具。" : "Run codex login in Terminal with your own ChatGPT account, then quit and reopen this app." }
+    static var setupReadFailed: String { isZh ? "暂时无法读取额度。请检查网络，并确认 Codex CLI 可以正常使用，再点“立即刷新”。已有数据会保留并标记为已过期。" : "Quota could not be read. Check your network and that Codex CLI works, then refresh. Previous readings remain marked as stale." }
+
     // MARK: - 菜单栏
 
     static var menuOffline: String { isZh ? "离线" : "Offline" }

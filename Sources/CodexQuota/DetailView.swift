@@ -9,6 +9,7 @@ struct DetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
+            setupSection
             Divider()
             windowsSection
             Divider()
@@ -93,12 +94,27 @@ struct DetailView: View {
     private var footer: some View {
         HStack {
             Button(L10n.refreshNow) { vm.refresh() }
+            Link(L10n.setupHelp, destination: URL(string: "https://github.com/Fatimini/CodexQuota#安装与构建")!)
             Spacer()
             Button(L10n.quit) { vm.quit() }
         }
     }
 
     // MARK: - 文本拼装
+
+    @ViewBuilder
+    private var setupSection: some View {
+        if let hint = vm.state.setupHint {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(hint).font(.callout)
+                Link(L10n.cliGuide, destination: URL(string: "https://learn.chatgpt.com/docs/codex/cli")!)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+        }
+    }
 
     private var planText: String {
         let plan = vm.state.snapshot?.planType ?? vm.state.account?.planType

@@ -1,5 +1,12 @@
 # CodexQuota 版本轨迹
 
+## v1.3.0（公开测试版）Mac 试用包与安装引导
+
+- 新增 Apple Silicon 试用包脚本、ZIP 校验文件与中英文安装说明；ad-hoc 签名，未公证。
+- 面板新增缺少 CLI、未登录和读取失败的操作提示，以及安装帮助入口。
+- 套餐显示逻辑保持原样，不合并或重命名 Pro 档位。
+- 单元测试 67/67 通过，试用 ZIP 解压后的签名与真实读取已验证；跨机安装、界面新增提示、休眠唤醒与断网恢复仍需真机验证。
+
 - **产物归档**：`releases/v<版本>-<日期>/`，每目录含 `CodexQuota.app` 与 `RELEASE_NOTES.md`（含可执行文件 SHA-256）；`releases/` 为本机归档，不随源码发布，正式发布用 Git tag + GitHub Release
 - **版本号**：根目录 `VERSION` 文件是唯一来源，构建时注入 App 的 `CFBundleShortVersionString`（仓库内 `Info.plist` 作为模板，不被改写）
 - **发布命令**：`./build_app.sh "改动摘要"`；**升版本必须先改 `VERSION`**，脚本不接受命令行版本参数（同名归档已存在时拒绝覆盖，历史版本只读）

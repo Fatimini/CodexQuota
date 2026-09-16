@@ -42,6 +42,14 @@ struct QuotaState: Equatable {
     var account: AccountInfo?
     var cliVersion: String?
 
+    var setupHint: String? {
+        if case .disconnected(.cliNotFound) = connection { return L10n.setupMissingCLI }
+        if account?.loggedIn == false { return L10n.setupLogin }
+        if lastFailure != nil { return L10n.setupReadFailed }
+        if case .disconnected = connection { return L10n.setupReadFailed }
+        return nil
+    }
+
     var dataStatus: DataStatus {
         guard snapshot != nil else { return .unavailable }
         if lastFailure != nil { return .stale }
