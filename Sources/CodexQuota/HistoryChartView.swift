@@ -88,7 +88,7 @@ struct HistoryChartView: View {
             Text(L10n.historyEmpty).font(.footnote).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 116)
+        .frame(height: 152)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
     }
 
@@ -102,30 +102,37 @@ struct HistoryChartView: View {
                         series: .value(L10n.chartPlotWindow, series.name)
                     )
                     .foregroundStyle(series.color)
-                    .interpolationMethod(.monotone)
-                    .lineStyle(StrokeStyle(lineWidth: 1.5))
+                    // Straight segments avoid tiny spline bulges around integer-percent steps.
+                    .interpolationMethod(.linear)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 }
             }
         }
-        .chartYScale(domain: 0...100)
+        // Leave room for the full stroke at 0% and 100%, including rounded ends.
+        .chartYScale(domain: 0...100, range: .plotDimension(padding: 3))
+        .chartXScale(range: .plotDimension(padding: 3))
         .chartYAxis {
             AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                AxisGridLine()
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.secondary.opacity(0.2))
                 AxisValueLabel {
                     if let pct = value.as(Int.self) { Text("\(pct)") }
                 }
             }
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { value in
+            AxisMarks(preset: .aligned, values: .automatic(desiredCount: 4)) { value in
                 AxisValueLabel {
                     if let date = value.as(Date.self) {
                         Text(L10n.chartAxisTime(date, spanHours: range.axisSpanHours))
+                            .fixedSize()
                     }
                 }
             }
         }
-        .frame(height: 96)
+        .frame(height: 132)
+        // Composite the chart at the display's native scale with antialiased edges.
+        .drawingGroup(opaque: false, colorMode: .linear)
     }
 
     private var legend: some View {
@@ -188,7 +195,8 @@ struct HistoryChartView: View {
             guard raw.count >= 2 else { continue }
             result.append(HistorySeries(
                 windowDurationMins: mins,
-                samples: HistoryDownsampler.downsample(raw, maxCount: 300),
+                samples: HistoryDownsampler.simplify(
+                    HistoryDownsampler.downsample(raw, maxCount: 300)),
                 color: Self.palette[idx % Self.palette.count]))
         }
         return result

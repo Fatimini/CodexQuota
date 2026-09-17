@@ -5,7 +5,7 @@
 
 ## 安装
 
-1. 从 https://github.com/Fatimini/CodexQuota/releases/tag/v1.3.0 下载带 `macOS-arm64.zip` 的附件，不要选择 Source code。
+1. 从 https://github.com/Fatimini/CodexQuota/releases/tag/v1.3.1 下载带 `macOS-arm64.zip` 的附件，不要选择 Source code。
 2. 解压，将 CodexQuota.app 拖到“应用程序”，再打开。更新前先从旧 App 菜单退出。
 3. 如果提示无法验证开发者，仅在确认来源可信时，进入“系统设置 → 隐私与安全性”，为此 App 选择“仍要打开”，按提示确认。不要关闭系统整体安全保护。
 4. 若显示“将损坏电脑”或“已损坏”，停止安装，重新检查下载来源或反馈问题，不要强行绕过。

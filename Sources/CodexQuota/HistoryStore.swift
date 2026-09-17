@@ -148,19 +148,79 @@ final class HistoryStore: ObservableObject {
     }
 }
 
-/// 抽稀：曲线点数过多会拖慢渲染，均匀取样到上限内并固定保留首尾点
+/// 分组保留最低与最高采样：避免均匀抽稀漏掉短暂耗尽和紧随其后的恢复。
+/// 只选择真实采样点，不平均百分比、不修改落盘历史；固定保留首尾点。
 enum HistoryDownsampler {
+    /// Remove sub-percentage staircase noise from integer readings in the display only.
+    /// The straight segment error is at most half a percentage point; kept points are exact.
+    /// Called after downsampling so the iterative simplification stays bounded to 300 points.
+    static func simplify(_ samples: [HistorySample]) -> [HistorySample] {
+        guard samples.count > 2 else { return samples }
+        var keep: Set<Int> = [0, samples.count - 1]
+        var pending = [(0, samples.count - 1)]
+        while let (start, end) = pending.popLast() {
+            guard end - start > 1 else { continue }
+            let duration = samples[end].date.timeIntervalSince(samples[start].date)
+            guard duration > 0 else { return samples }
+            let firstY = Double(samples[start].remainingPercent)
+            let deltaY = Double(samples[end].remainingPercent) - firstY
+            var largestError = 0.5
+            var selected: Int?
+            for index in (start + 1)..<end {
+                let fraction = samples[index].date.timeIntervalSince(samples[start].date) / duration
+                let error = abs(Double(samples[index].remainingPercent) - (firstY + fraction * deltaY))
+                if error > largestError {
+                    largestError = error
+                    selected = index
+                }
+            }
+            if let selected {
+                keep.insert(selected)
+                pending.append((start, selected))
+                pending.append((selected, end))
+            }
+        }
+        return keep.sorted().map { samples[$0] }
+    }
+
     static func downsample(_ samples: [HistorySample], maxCount: Int) -> [HistorySample] {
         guard maxCount >= 2, samples.count > maxCount else { return samples }
-        let step = Double(samples.count - 1) / Double(maxCount - 1)
-        var out: [HistorySample] = []
-        out.reserveCapacity(maxCount)
-        for i in 0..<maxCount {
-            var idx = Int((Double(i) * step).rounded())
-            idx = min(max(idx, 0), samples.count - 1)
-            out.append(samples[idx])
+        guard maxCount > 2 else { return [samples[0], samples[samples.count - 1]] }
+        if maxCount == 3 {
+            // With one interior slot, retain the largest departure from the endpoint line.
+            let first = samples[0]
+            let last = samples[samples.count - 1]
+            let duration = last.date.timeIntervalSince(first.date)
+            let selected = samples.dropFirst().dropLast().max { a, b in
+                func deviation(_ point: HistorySample) -> Double {
+                    let fraction = duration > 0 ? point.date.timeIntervalSince(first.date) / duration : 0
+                    let expected = Double(first.remainingPercent)
+                        + fraction * (Double(last.remainingPercent) - Double(first.remainingPercent))
+                    return abs(Double(point.remainingPercent) - expected)
+                }
+                return deviation(a) < deviation(b)
+            }!
+            return [first, selected, last]
         }
-        if let last = samples.last { out[maxCount - 1] = last }
+
+        let bucketCount = (maxCount - 2) / 2
+        let interiorCount = samples.count - 2
+        var out = [samples[0]]
+        out.reserveCapacity(maxCount)
+        for bucket in 0..<bucketCount {
+            let start = 1 + bucket * interiorCount / bucketCount
+            let end = 1 + (bucket + 1) * interiorCount / bucketCount
+            var lowest = start
+            var highest = start
+            for index in start..<end {
+                if samples[index].remainingPercent < samples[lowest].remainingPercent { lowest = index }
+                if samples[index].remainingPercent >= samples[highest].remainingPercent { highest = index }
+            }
+            // Preserve chronological order, including both ends of a flat bucket.
+            out.append(samples[min(lowest, highest)])
+            if lowest != highest { out.append(samples[max(lowest, highest)]) }
+        }
+        out.append(samples[samples.count - 1])
         return out
     }
 }

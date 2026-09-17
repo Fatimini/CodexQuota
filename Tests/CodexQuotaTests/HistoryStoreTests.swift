@@ -158,6 +158,73 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertEqual(HistoryDownsampler.downsample(samples, maxCount: 300).count, 10)
     }
 
+    func testDownsampleKeepsBriefDipAndRecovery() {
+        var samples = (0..<1000).map {
+            HistorySample(date: base.addingTimeInterval(Double($0) * 60), remainingPercent: 80)
+        }
+        samples[501].remainingPercent = 2
+        samples[502].remainingPercent = 100
+        let out = HistoryDownsampler.downsample(samples, maxCount: 100)
+        XCTAssertTrue(out.contains(samples[501]), "不能把短暂耗尽的采样跳过去")
+        XCTAssertTrue(out.contains(samples[502]), "不能把紧接着的额度恢复跳过去")
+    }
+
+    func testDownsampleKeepsRealSamplesInTimeOrderWithIrregularSpacing() {
+        let samples = (0..<1000).map {
+            HistorySample(date: base.addingTimeInterval(Double($0 * $0)), remainingPercent: ($0 * 7) % 101)
+        }
+        let out = HistoryDownsampler.downsample(samples, maxCount: 300)
+        XCTAssertEqual(out.count, 300)
+        XCTAssertTrue(out.allSatisfy { samples.contains($0) }, "绘图不得制造平均值或新采样")
+        XCTAssertTrue(zip(out, out.dropFirst()).allSatisfy { $0.date < $1.date })
+    }
+
+    func testDownsampleFlatHistoryAndSmallBudgets() {
+        let samples = (0..<100).map {
+            HistorySample(date: base.addingTimeInterval(Double($0)), remainingPercent: 50)
+        }
+        for budget in [2, 3, 4, 99] {
+            let out = HistoryDownsampler.downsample(samples, maxCount: budget)
+            XCTAssertLessThanOrEqual(out.count, budget)
+            XCTAssertEqual(out.first, samples.first)
+            XCTAssertEqual(out.last, samples.last)
+            XCTAssertTrue(out.allSatisfy { $0.remainingPercent == 50 })
+            XCTAssertTrue(zip(out, out.dropFirst()).allSatisfy { $0.date < $1.date })
+        }
+        XCTAssertTrue(HistoryDownsampler.downsample([], maxCount: 300).isEmpty)
+        XCTAssertEqual(HistoryDownsampler.downsample(samples, maxCount: 1), samples)
+    }
+
+    func testDisplaySimplificationReducesStaircaseWithinHalfPoint() {
+        let samples = (0..<300).map {
+            HistorySample(date: base.addingTimeInterval(Double($0) * 60), remainingPercent: 100 - $0 / 3)
+        }
+        let out = HistoryDownsampler.simplify(samples)
+        XCTAssertLessThan(out.count, samples.count)
+        XCTAssertEqual(out.first, samples.first)
+        XCTAssertEqual(out.last, samples.last)
+        XCTAssertTrue(out.allSatisfy { samples.contains($0) })
+        for (start, end) in zip(out, out.dropFirst()) {
+            for point in samples where point.date >= start.date && point.date <= end.date {
+                let fraction = point.date.timeIntervalSince(start.date) / end.date.timeIntervalSince(start.date)
+                let expected = Double(start.remainingPercent)
+                    + fraction * Double(end.remainingPercent - start.remainingPercent)
+                XCTAssertLessThanOrEqual(abs(Double(point.remainingPercent) - expected), 0.500_001)
+            }
+        }
+    }
+
+    func testDisplaySimplificationKeepsDropResetAndPlateauBoundaries() {
+        let values = [80, 80, 80, 2, 100, 100, 100]
+        let samples = values.enumerated().map {
+            HistorySample(date: base.addingTimeInterval(Double($0.offset) * 60), remainingPercent: $0.element)
+        }
+        let out = HistoryDownsampler.simplify(samples)
+        for index in [0, 2, 3, 4, 6] { XCTAssertTrue(out.contains(samples[index])) }
+        XCTAssertEqual(HistoryDownsampler.simplify(Array(samples.prefix(2))), Array(samples.prefix(2)))
+        XCTAssertTrue(HistoryDownsampler.simplify([]).isEmpty)
+    }
+
     // MARK: - 快照记录
 
     func testSnapshotRecordingExtractsRemainingPercent() {
