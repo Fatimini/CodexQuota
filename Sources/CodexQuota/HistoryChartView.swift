@@ -93,46 +93,7 @@ struct HistoryChartView: View {
     }
 
     private var chart: some View {
-        Chart {
-            ForEach(seriesList) { series in
-                ForEach(series.samples, id: \.date) { sample in
-                    LineMark(
-                        x: .value(L10n.chartPlotTime, sample.date),
-                        y: .value(L10n.chartPlotRemaining, sample.remainingPercent),
-                        series: .value(L10n.chartPlotWindow, series.name)
-                    )
-                    .foregroundStyle(series.color)
-                    // Straight segments avoid tiny spline bulges around integer-percent steps.
-                    .interpolationMethod(.linear)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                }
-            }
-        }
-        // Leave room for the full stroke at 0% and 100%, including rounded ends.
-        .chartYScale(domain: 0...100, range: .plotDimension(padding: 3))
-        .chartXScale(range: .plotDimension(padding: 3))
-        .chartYAxis {
-            AxisMarks(values: [0, 25, 50, 75, 100]) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(Color.secondary.opacity(0.2))
-                AxisValueLabel {
-                    if let pct = value.as(Int.self) { Text("\(pct)") }
-                }
-            }
-        }
-        .chartXAxis {
-            AxisMarks(preset: .aligned, values: .automatic(desiredCount: 4)) { value in
-                AxisValueLabel {
-                    if let date = value.as(Date.self) {
-                        Text(L10n.chartAxisTime(date, spanHours: range.axisSpanHours))
-                            .fixedSize()
-                    }
-                }
-            }
-        }
-        .frame(height: 132)
-        // Composite the chart at the display's native scale with antialiased edges.
-        .drawingGroup(opaque: false, colorMode: .linear)
+        HistoryPlot(series: seriesList, range: range)
     }
 
     private var legend: some View {
@@ -209,5 +170,54 @@ struct HistoryChartView: View {
 
     private var footerText: String {
         sampleCount > 0 ? L10n.sampleCount(sampleCount) : L10n.historyFooterHint
+    }
+}
+
+/// Shared by the panel and native rendering checks; contains no account information.
+struct HistoryPlot: View {
+    let series: [HistorySeries]
+    let range: HistoryRange
+
+    var body: some View {
+        Chart {
+            ForEach(series) { series in
+                ForEach(series.samples, id: \.date) { sample in
+                    LineMark(
+                        x: .value(L10n.chartPlotTime, sample.date),
+                        y: .value(L10n.chartPlotRemaining, sample.remainingPercent),
+                        series: .value(L10n.chartPlotWindow, series.name)
+                    )
+                    .foregroundStyle(series.color)
+                    // Monotone cubic interpolation rounds turns without overshooting quota values.
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                }
+            }
+        }
+        // Leave room for the full stroke at 0% and 100%, including rounded ends.
+        .chartYScale(domain: 0...100, range: .plotDimension(padding: 3))
+        .chartXScale(range: .plotDimension(padding: 3))
+        .chartYAxis {
+            AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(Color.secondary.opacity(0.2))
+                AxisValueLabel {
+                    if let pct = value.as(Int.self) { Text("\(pct)") }
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(preset: .aligned, values: .automatic(desiredCount: 4)) { value in
+                AxisValueLabel {
+                    if let date = value.as(Date.self) {
+                        Text(L10n.chartAxisTime(date, spanHours: range.axisSpanHours))
+                            .fixedSize()
+                    }
+                }
+            }
+        }
+        .frame(height: 132)
+        // Composite the chart at the display's native scale with antialiased edges.
+        .drawingGroup(opaque: false, colorMode: .linear)
     }
 }
